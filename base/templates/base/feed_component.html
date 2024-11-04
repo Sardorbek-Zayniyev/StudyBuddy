@@ -6,7 +6,7 @@
         {% endif %}
 
 
-        <h3> @{{room.host.username}}</h3>
+        <a href = '{% url "user_profile" room.host.id %}'><h3> @{{room.host.username}}</h3></a>
         <div>
             <h1>{{room.id}} -- <a href='{% url "room" room.id %}'>{{room.name}}</a></h1>
 
