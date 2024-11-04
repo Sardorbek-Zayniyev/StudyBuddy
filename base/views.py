@@ -5,18 +5,19 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
 
 from .models import Topic, Room
 from .forms import RoomForm
 
 
 def login_page(request):
-
+    page = 'login'
     if request.user.is_authenticated:
         return redirect('home')
 
     if request.method == 'POST':
-        username = request.POST.get('username')
+        username = request.POST.get('username').lower()
         password = request.POST.get('password')
 
         try:
@@ -33,7 +34,7 @@ def login_page(request):
             messages.error(request, 'Username or Password does not exist')
 
     context = {
-
+        'page': page,
     }
     return render(request, 'base/login_registration.html', context)
 
@@ -41,6 +42,26 @@ def login_page(request):
 def logout_user(request):
     logout(request)
     return redirect('home')
+
+
+def register_user(request):
+    page = 'register'
+    form = UserCreationForm()
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.username = user.username.lower()
+            user.save()
+            login(request, user)
+            return redirect('home')
+        else:
+            messages.error(request, 'An error occured during registration')
+    context = {
+        'page': page,
+        'form': form,
+    }
+    return render(request, 'base/login_registration.html', context)
 
 
 def home(request):
