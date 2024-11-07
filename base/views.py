@@ -102,7 +102,7 @@ def home(request):
         Q(name__icontains=q) |
         Q(description__icontains=q)
     )
-    topics = Topic.objects.all()
+    topics = Topic.objects.all()[0:5]
     room_count = rooms.count()
     room_messages = Message.objects.filter(
         Q(room__topic__name__icontains=q),
@@ -135,6 +135,8 @@ def room(request, pk):
         'participants': participants,
     }
     return render(request, 'base/room.html', context)
+
+# Room CRUD
 
 
 @login_required(login_url='login')
@@ -198,6 +200,8 @@ def delete_room(request, pk):
         return redirect('home')
     return render(request, 'base/delete.html', {'obj': room})
 
+# Message CRUD
+
 
 @login_required(login_url='login')
 def edit_message(request, pk):
@@ -229,3 +233,16 @@ def delete_message(request, pk):
         message.delete()
         return redirect('room', pk=room_id)
     return render(request, 'base/delete.html', {'obj': message})
+
+
+def topics_page(request):
+    q = request.GET.get('q') if request.GET.get('q') != None else ''
+    topics = Topic.objects.filter(name__icontains=q)
+
+    return render(request, 'base/topics.html', {'topics': topics})
+
+
+def activity_page(request):
+    room_messages = Message.objects.all()
+
+    return render(request, 'base/activity.html', {'room_messages': room_messages})
