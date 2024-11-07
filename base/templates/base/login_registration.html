@@ -15,8 +15,8 @@
             <form class="form" action="" method='POST'>
               {% csrf_token %}
               <div class="form__group form__group">
-                <label for="room_name">Username</label>
-                <input id="username" name="username" type="text" placeholder="e.g. sardorbee" />
+                <label for="room_name">Email</label>
+                <input id="username" name="email" type="text" placeholder="e.g. sardorbee" />
               </div>
               <div class="form__group">
                 <label for="password">Password</label>
@@ -69,14 +69,20 @@
             <h2 class="auth__tagline">Find your study partner</h2>
             <form class="form" action="" method='POST'>
               {% csrf_token %}
-              {% for field in form %}
+              {% comment %} {% for field in form %}
               <div class="form__group form__group">
                 <label for="room_name">{{field.label}}</label>
                 {{field}}
               </div>
-              {% endfor %}
-    
-
+              {% endfor %} {% endcomment %}
+              <div class="form__group form__group">
+                <label>Email address </label>{{form.email}}
+                <br>
+                <label>Username</label>{{form.username}}            
+                <label>Password</label>{{form.password}} 
+                <label>Confirm Password</label>{{form.confirm_password}}
+              </div>
+           
               <button class="btn btn--main" type="submit">
                 <svg
                   version="1.1"

@@ -4,11 +4,12 @@ from django.db.models import Q
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
+from django.utils import timezone
+from datetime import timedelta
 
-from .models import Topic, Room, Message
-from .forms import UserForm, RoomForm, MessageForm
+from .models import User, Topic, Room, Message
+from .forms import UserForm, UserCreationForm, RoomForm, MessageForm
+from .utils import create_user_and_send_verification_email, activate_user
 
 
 def login_page(request):
@@ -17,15 +18,15 @@ def login_page(request):
         return redirect('home')
 
     if request.method == 'POST':
-        username = request.POST.get('username').lower()
+        email = request.POST.get('email')
         password = request.POST.get('password')
 
         try:
-            user = User.objects.get(username=username)
+            user = User.objects.get(email=email)
         except:
             messages.error(request, 'User does not exist')
 
-        user = authenticate(request, username=username, password=password)
+        user = authenticate(request, email=email, password=password)
 
         if user is not None:
             login(request, user)
@@ -45,35 +46,71 @@ def logout_user(request):
 
 
 def register_user(request):
-    page = 'register'
-    form = UserCreationForm()
-    if request.method == 'POST':
+    if request.user.is_authenticated:
+        messages.warning(request, 'You are already authenticated!')
+        return redirect('user_profile', pk=request.user.id)
+
+    elif request.method == 'POST':
         form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save(commit=False)
-            user.username = user.username.lower()
-            user.save()
-            login(request, user)
-            return redirect('home')
+        email = request.POST.get('email')
+        user = User.objects.filter(email=email, is_active=False).first()
+        if user is not None:
+            time_difference = timezone.now() - user.activation_sent_at
+            remaining_time = 5 - int(time_difference.total_seconds() / 60)
+            if time_difference < timedelta(minutes=5):
+                messages.error(
+                    request, f"Please wait {remaining_time} minutes before requesting another activation link.")
+            else:
+                user.delete()
+                if form.is_valid():
+                    create_user_and_send_verification_email(
+                        request, form, 'emails/account_verification_email.html'
+                    )
+                    messages.success(
+                        request, f"A new verification link has been sent to your email.<br>Please check your inbox or spam folder."
+                    )
         else:
-            messages.error(request, 'An error occured during registration')
+            if form.is_valid():
+                create_user_and_send_verification_email(
+                    request, form, 'emails/account_verification_email.html')
+                messages.success(
+                    request, f"Your Email verification link has been successfully sent.<br>Please click it to complete the verification process.")
+                return redirect('login')
+            else:
+                messages.error(request, 'An error occured during registration')
+    else:
+        form = UserCreationForm()
     context = {
-        'page': page,
-        'form': form,
+        'form': form
     }
     return render(request, 'base/login_registration.html', context)
+
+
+def activate(request, uidb64, token):
+    # Activate the user by setting the is_active status to True
+    user = activate_user(uidb64, token)
+
+    if user is not None and timezone.now() - user.activation_sent_at < timedelta(minutes=5):
+        messages.success(
+            request, 'Congratulations! Your account is activated.')
+    else:
+        messages.error(request, 'Activation link is invalid or has expired.')
+        return redirect('home')
+    return redirect('user_profile', pk=user.id)
 
 
 @login_required(login_url='login')
 def edit_user(request):
     user = request.user
-    # form = UserForm()
     form = UserForm(instance=request.user)
     if request.method == 'POST':
-        form = UserForm(request.POST, instance=user)
+        form = UserForm(request.POST, request.FILES, instance=user)
         if form.is_valid():
             form.save()
-        return redirect('user_profile', pk=user.id)
+            messages.success(request, 'Your profile is updated.')
+            return redirect('user_profile', pk=user.id)
+        else:
+            messages.error(request, 'Something went wrong during the update.')
     context = {
         'form': form
     }
