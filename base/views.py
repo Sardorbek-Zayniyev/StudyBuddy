@@ -6,14 +6,18 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth.hashers import check_password
+from django.core.exceptions import ValidationError
 
 from .models import User, Topic, Room, Message
 from .forms import UserForm, UserCreationForm, RoomForm, MessageForm
-from .utils import create_user_and_send_verification_email, activate_user
+from .utils import create_user_and_send_verification_email, activate_user, send_verification_email
 
 
 def login_page(request):
+
     page = 'login'
+
     if request.user.is_authenticated:
         return redirect('home')
 
@@ -23,16 +27,21 @@ def login_page(request):
 
         try:
             user = User.objects.get(email=email)
-        except:
-            messages.error(request, 'User does not exist')
 
-        user = authenticate(request, email=email, password=password)
-
-        if user is not None:
-            login(request, user)
-            return redirect('home')
-        else:
-            messages.error(request, 'Username or Password does not exist')
+            if check_password(password, user.password):
+                if user.is_active:
+                    login(request, user)
+                    return redirect('home')
+                elif timezone.now() - user.activation_sent_at < timedelta(minutes=5):
+                    messages.warning(
+                        request, 'Please activate your profile first!')
+                else:
+                    messages.error(
+                        request, 'Activation link expired. Please request a new one.')
+            else:
+                messages.error(request, 'Incorrect password')
+        except User.DoesNotExist:
+            messages.error(request, 'Incorrect username or password')
 
     context = {
         'page': page,
@@ -42,6 +51,7 @@ def login_page(request):
 
 def logout_user(request):
     logout(request)
+    messages.success(request, 'You are logged out.')
     return redirect('home')
 
 
@@ -87,16 +97,71 @@ def register_user(request):
 
 
 def activate(request, uidb64, token):
-    # Activate the user by setting the is_active status to True
     user = activate_user(uidb64, token)
 
-    if user is not None and timezone.now() - user.activation_sent_at < timedelta(minutes=5):
+    if user is not None:
         messages.success(
             request, 'Congratulations! Your account is activated.')
     else:
         messages.error(request, 'Activation link is invalid or has expired.')
         return redirect('home')
     return redirect('user_profile', pk=user.id)
+
+
+def forgot_password(request):
+
+    if request.method == "POST":
+        email = request.POST.get('email')
+        try:
+            user = User.objects.get(email=email)
+            if user:
+                mail_subject = 'Reset Your Password'
+                email_template = 'emails/reset_password_email.html'
+                send_verification_email(
+                    request, user, mail_subject, email_template
+                )
+                messages.success(
+                    request, 'Password reset link has been sent to your email address.')
+                return redirect('login')
+        except User.DoesNotExist:
+            messages.error(request, 'Account does not exist')
+            return redirect('forgot_password')
+    return render(request, 'base/forgot_password.html')
+
+
+def reset_password_validate(request, uidb64, token):
+    try:
+        user = activate_user(uidb64, token)
+        if user:
+            request.session['uid'] = user.pk
+            messages.warning(request, 'Please reset your password')
+            return redirect('reset_password')
+        else:
+            messages.error(request, 'This link has expired!')
+            return redirect('forgot_password')
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+        return redirect('forgot_password')
+
+
+def reset_password(request):
+
+    if request.method == "POST":
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if password == confirm_password:
+            pk = request.session.get('uid')
+            user = User.objects.get(pk=pk)
+            user.set_password(password)
+            user.is_active = True
+            user.save()
+            messages.success(request, 'Password reset successful.')
+            return redirect('login')
+        else:
+            messages.error(request, 'Password do not match!')
+            return redirect('reset_password')
+    return render(request, 'base/reset_password.html')
 
 
 @login_required(login_url='login')

@@ -5,8 +5,10 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.core.mail import EmailMessage
 from django.contrib.auth.tokens import default_token_generator
-from .models import User
 from django.utils import timezone
+from datetime import timedelta
+
+from .models import User
 
 
 def send_notification(email_subject, email_template, context):
@@ -62,34 +64,19 @@ def create_user_and_send_verification_email(request, form, email_template):
 
 
 def activate_user(uidb64, token):
-    """
-    Activate the user by decoding the uidb64 and token.
-    """
-    try:
-        uid = urlsafe_base64_decode(uidb64).decode()
-        user = User._default_manager.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-        user = None
 
-    if user is not None and default_token_generator.check_token(user, token):
-        user.is_active = True
-        user.save()
-        return user
-    return None
+    uid = urlsafe_base64_decode(uidb64).decode()
+    user = User._default_manager.get(pk=uid)
+    if not user:
+        return None  # User does not exist
 
+    if not default_token_generator.check_token(user, token):
+        return None  # Invalid token
 
-def activate_user(uidb64, token):
-    """
-    Activate the user by decoding the uidb64 and token.
-    """
-    try:
-        uid = urlsafe_base64_decode(uidb64).decode()
-        user = User._default_manager.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-        user = None
+    time_difference = timezone.now() - user.activation_sent_at
+    if time_difference >= timedelta(minutes=5):
+        return None  # Activation link expired
 
-    if user is not None and default_token_generator.check_token(user, token):
-        user.is_active = True
-        user.save()
-        return user
-    return None
+    user.is_active = True
+    user.save()
+    return user

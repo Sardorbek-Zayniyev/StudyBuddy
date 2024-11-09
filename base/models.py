@@ -40,7 +40,7 @@ class User(AbstractBaseUser):
     username = models.CharField(max_length=50, unique=True)
     email = models.EmailField(max_length=100, unique=True)
     phone_number = models.CharField(max_length=12, blank=True)
-    bio = models.CharField(max_length=250)
+    bio = models.CharField(max_length=250, blank=True, null=True)
     avatar = models.ImageField(
         upload_to='users/profile_pictures', default='avatar.svg', blank=True, null=True)
     # Required fields
