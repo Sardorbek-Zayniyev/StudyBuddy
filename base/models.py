@@ -7,9 +7,9 @@ class UserManager(BaseUserManager):
 
     def create_user(self, username, email, password=None):
         if not email:
-            raise ValueError('User must have an email address')
+            raise ValueError("User must have an email address")
         if not username:
-            raise ValueError('User must have a username')
+            raise ValueError("User must have a username")
 
         user = self.model(
             email=self.normalize_email(email),
@@ -42,7 +42,8 @@ class User(AbstractBaseUser):
     phone_number = models.CharField(max_length=12, blank=True)
     bio = models.CharField(max_length=250, blank=True, null=True)
     avatar = models.ImageField(
-        upload_to='users/profile_pictures', default='avatar.svg', blank=True, null=True)
+        upload_to="users/profile_pictures", default="avatar.svg", blank=True, null=True
+    )
     # Required fields
     date_joined = models.DateTimeField(auto_now_add=True)
     last_login = models.DateTimeField(auto_now_add=True)
@@ -55,8 +56,8 @@ class User(AbstractBaseUser):
 
     activation_sent_at = models.DateTimeField(null=True, blank=True)
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username"]
 
     objects = UserManager()
 
@@ -82,13 +83,12 @@ class Room(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=200)
     description = models.TextField(null=True, blank=True)
-    participants = models.ManyToManyField(
-        User, related_name='participants', blank=True)
+    participants = models.ManyToManyField(User, related_name="participants", blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-updated', '-created']
+        ordering = ["-updated", "-created"]
 
     def __str__(self):
         return self.name
@@ -103,7 +103,7 @@ class Message(models.Model):
     is_edited = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['-updated', '-created']
+        ordering = ["-updated", "-created"]
 
     def __str__(self):
         return self.body[0:50]

@@ -14,11 +14,11 @@ from .models import User
 def send_notification(email_subject, email_template, context):
     from_email = settings.DEFAULT_FROM_EMAIL
     message = render_to_string(email_template, context)
-    if (isinstance(context['to_email'], str)):
+    if isinstance(context["to_email"], str):
         to_email = []
-        to_email.append(context['to_email'])
+        to_email.append(context["to_email"])
     else:
-        to_email = context['to_email']
+        to_email = context["to_email"]
     email = EmailMessage(email_subject, message, from_email, to=to_email)
     email.content_subtype = "html"
 
@@ -31,10 +31,10 @@ def send_verification_email(request, user, mail_subject, email_template):
     """
     current_site = get_current_site(request)
     context = {
-        'user': user,
-        'domain': current_site.domain,
-        'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-        'token': default_token_generator.make_token(user),
+        "user": user,
+        "domain": current_site.domain,
+        "uid": urlsafe_base64_encode(force_bytes(user.pk)),
+        "token": default_token_generator.make_token(user),
     }
     message = render_to_string(email_template, context)
     email = EmailMessage(
@@ -51,14 +51,13 @@ def create_user_and_send_verification_email(request, form, email_template):
     """
     Create a user with the given role and send a verification email.
     """
-    username = form.cleaned_data['username'].capitalize()
-    email = form.cleaned_data['email']
-    password = form.cleaned_data['password']
-    user = User.objects.create_user(
-        username=username, email=email, password=password)
+    username = form.cleaned_data["username"].capitalize()
+    email = form.cleaned_data["email"]
+    password = form.cleaned_data["password"]
+    user = User.objects.create_user(username=username, email=email, password=password)
     user.activation_sent_at = timezone.now()
     user.save()
-    mail_subject = 'Please activate your account'
+    mail_subject = "Please activate your account"
     send_verification_email(request, user, mail_subject, email_template)
     return user
 
