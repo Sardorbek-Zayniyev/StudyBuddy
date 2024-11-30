@@ -61,6 +61,11 @@ class User(AbstractBaseUser):
 
     objects = UserManager()
 
+    followers_count = models.PositiveIntegerField(default=0)
+    following_count = models.PositiveIntegerField(default=0)
+    sent_request = models.PositiveIntegerField(default=0)
+    received_request = models.PositiveIntegerField(default=0)
+
     def __str__(self):
         return self.email
 
@@ -83,7 +88,8 @@ class Room(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=200)
     description = models.TextField(null=True, blank=True)
-    participants = models.ManyToManyField(User, related_name="participants", blank=True)
+    participants = models.ManyToManyField(
+        User, related_name="participants", blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -107,3 +113,26 @@ class Message(models.Model):
 
     def __str__(self):
         return self.body[0:50]
+
+
+class FriendRequest(models.Model):
+
+    STATUS_TYPE = (
+        ('requested', 'requested'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected')
+    )
+    sender = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="following")
+    receiver = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="followers")
+    status = models.CharField(
+        max_length=10, choices=STATUS_TYPE, default='requested')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('sender', 'receiver')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.sender.username} -> {self.receiver.username} ({self.status})"

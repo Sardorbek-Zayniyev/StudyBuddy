@@ -1,50 +1,261 @@
 {% extends "main.html" %}
 {% block content %}
-  <main class="profile-page layout layout--3">
-    <div class="container">
-      <!-- Topics Start -->
-      {% include "base/topics_component.html" %}
-      <!-- Topics End -->
+<style>
+  /* General scrollbar style */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
 
-      <!-- Room List Start -->
-      <div class="roomList">
-        <div class="profile">
-          <div class="profile__avatar">
-            <div class="avatar avatar--large active">
-              <img src="{{user.avatar.url}}" />
-            </div>
-          </div>
-          <div class="profile__info">
-            <h3>{{user.username}} </h3>
-            <p>@{{user.username}}</p>
-            {% if request.user == user %}
-            <a href="{% url 'edit_user' %}" class="btn btn--main btn--pill">Edit Profile</a>
-            {% endif %}
-          </div>
-          <div class="profile__about">      
-            <h3>Bio</h3>
-            <p>
-              {{user.bio}}
-            </p>
+  /* Scrollbar thumb style */
+  ::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 5px;
+  }
+
+  /* Scrollbar track style */
+  ::-webkit-scrollbar-track {
+    background-color: #f0f0f0;
+  }
+
+  .follower-container {
+    overflow-y: scroll;
+    height: 500px;
+    /* Adjust height as needed */
+  }
+
+  .follower {
+    align-items: center;
+    padding: 3px;
+  }
+
+  .follower img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-right: 10px;
+    margin-left: 40px;
+  }
+
+  .follower-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .username {
+    margin-bottom: 1px;
+    margin-left: 35px;
+    font-size: 20px;
+  }
+
+  .follow-btn {
+    /* Style the button as desired */
+    padding: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+
+  }
+
+  .follower-container {
+    /* ... other styles ... */
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .follower-row {
+    padding: 10px;
+  }
+
+  /* ... other styles ... */
+
+  .block-btn {
+    /* Style the button as desired */
+    padding: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #ff0000;
+    /* Red for blocking */
+    color: white;
+    cursor: pointer;
+  }
+
+  .btnn {
+    width: 150px;
+    margin-top: 10px;
+    display: inline-block;
+    padding: 0.5px 20px;
+    border-radius: 5px;
+    font-size: 20px;
+    transition: all 0.5s
+      /* Add other common styles like background color, font-weight, etc. */
+  }
+
+  /* Specific button styles */
+  .btn-unfollow {
+    background-color: #e74c3c;
+    /* Reddish color for unfollow */
+    color: white;
+  }
+
+  .btn-pending {
+    background-color: #f9a825;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    /* Add transition effect */
+  }
+
+  .btn-pending:hover {
+    background-color: #e74c3c;
+    color: white;
+  }
+
+  .btn-follow {
+    background-color: #3498db;
+    /* Green color for follow */
+    color: white;
+  }
+
+  .btn-followed {
+    background-color: #2ecc71;
+    /* Green color for follow */
+    color: white;
+  }
+
+  .btn-followed:hover {
+    background-color: #e74c3c;
+    color: white
+  }
+
+  .btn-accept {
+    background-color: green;
+    /* Orange color for pending */
+    color: white;
+  }
+
+  /* Add additional styles for hover, focus, etc. as needed */
+  .btn:hover {
+    opacity: 3;
+    /* Reduce opacity slightly */
+  }
+
+  .btn:focus {
+    outline: 2px solid #ddd;
+    /* Outline on focus */
+  }
+
+  .btn-message {
+    background-color: #3498db;
+    /* Blue color for message */
+    color: white;
+
+  }
+</style>
+<main class="profile-page layout layout--3">
+  <div class="container">
+    <!-- Topics Start -->
+    {% include "base/topics_component.html" %}
+    <!-- Topics End -->
+
+    <!-- Room List Start -->
+    <div class="roomList">
+      <div class="profile">
+        <div class="profile__avatar">
+          <div class="avatar avatar--large active">
+            <img src="{{user.avatar.url}}" />
           </div>
         </div>
+        <div class="profile__info">
 
-        <div class="roomList__header">
-          <div>
-            <h2>Study Rooms Hosted by {{user.username}}</a>
-            </h2>
+          {% if user.first_name%}
+          {{user.first_name}}
+          {% endif %}
+          {% if user.last_name %}
+          {{user.last_name}}
+          {% endif %}
+          <p>@{{user.username}}</p>
+          {% if request.user == user %}
+          <a href="{% url 'edit_user' %}" class="btn btn--main btn--pill">Edit Profile</a><br>
+          <div style="font-size: 19px;">
+            <a href="{% url 'get_my_followers' %}" class="profile__about">Followers </a>&nbsp; <strong>
+              {{user.followers_count}}</strong>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
+            <a href="{% url 'get_my_following' %}" class="profile__about">Following </a> <strong>
+              {{user.following_count}}</strong>
           </div>
-        </div>
+          <br>
+          {% else %}
+          <div style="font-size: 19px;">
+            <a href="{% url 'get_followers' user.id %}" class="profile__about">Followers </a>&nbsp; <strong>
+              {{user.followers_count}}</strong>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
+            <a href="{% url 'get_following' user.id %}" class="profile__about">Following </a> <strong>
+              {{user.following_count}}</strong>
+          </div>
+          <br>
+          {% endif %}
 
-        {% include 'base/feed_component.html' %}
-        
+          {% if request.user != user %}
+          {% if is_followed %}
+          <a href="{% url 'unfollow_user' user.id %}" class="btnn btn-followed">Followed</a>
+          {% elif is_requesting %}
+          <a href="{% url 'unfollow_user' user.id %}" class="btnn btn-pending">Requested</a>
+          {% else %}
+          <a href="{% url 'sent_friend_request' user.id %}" class="btnn btn-follow">Follow</a>
+          {% endif %}
+          <a href="#" class="btnn btn-message">Message</a>
+
+          {% endif %}
+        </div>
+        <div class="profile__about">
+          <h3>Bio</h3>
+          <p>
+            {{user.bio}}
+          </p>
+        </div>
       </div>
-      <!-- Room List End -->
 
-      <!-- Activities Start -->
-        {% include "base/activity_component.html" %}
-      <!-- Activities End -->
+      <div class="roomList__header">
+        <div>
+          <h2>Study Rooms Hosted by {{user.username}}</a>
+          </h2>
+        </div>
+      </div>
+
+      {% include 'base/feed_component.html' %}
+
     </div>
-  </main>
-{% endblock content %}
+    <!-- Room List End -->
 
+    <!-- Activities Start -->
+    {% include "base/activity_component.html" %}
+    <!-- Activities End -->
+  </div>
+  <script>
+    const pendingButtons = document.querySelectorAll('.btn-pending');
+
+    pendingButtons.forEach(button => {
+      button.addEventListener('mouseover', () => {
+        button.textContent = 'Cancel';
+      });
+
+      button.addEventListener('mouseout', () => {
+        button.textContent = 'Requested';
+      });
+    });
+    const followButtons = document.querySelectorAll('.btn-followed');
+
+    followButtons.forEach(button => {
+      button.addEventListener('mouseover', () => {
+        button.textContent = 'Unfollow';
+      });
+
+      button.addEventListener('mouseout', () => {
+        button.textContent = 'Followed'; // Restore original text
+      });
+    });
+  </script>
+</main>
+{% endblock content %}

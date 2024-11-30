@@ -1,0 +1,276 @@
+{% extends "main.html" %}
+{% block content %}
+<style>
+  /* General scrollbar style */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  /* Scrollbar thumb style */
+  ::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 5px;
+  }
+
+  /* Scrollbar track style */
+  ::-webkit-scrollbar-track {
+    background-color: #f0f0f0;
+  }
+
+  .follower-container {
+    overflow-y: scroll;
+    height: 500px;
+    /* Adjust height as needed */
+  }
+
+  .follower {
+    align-items: center;
+    padding: 3px;
+  }
+
+  .follower img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-right: 10px;
+    margin-left: 40px;
+  }
+
+  .follower-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .username {
+    margin-bottom: 1px;
+    margin-left: 35px;
+    font-size: 20px;
+  }
+
+  .follow-btn {
+    /* Style the button as desired */
+    padding: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+
+  }
+
+  .follower-container {
+    /* ... other styles ... */
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .follower-row {
+    padding: 10px;
+  }
+
+  /* ... other styles ... */
+
+  .block-btn {
+    /* Style the button as desired */
+    padding: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #ff0000;
+    /* Red for blocking */
+    color: white;
+    cursor: pointer;
+  }
+
+  .btn {
+    margin-top: 10px;
+    display: inline-block;
+    padding: 0.5px 20px;
+    border-radius: 5px;
+    font-size: 20px;
+    transition: all 0.5s
+      /* Add other common styles like background color, font-weight, etc. */
+  }
+
+  /* Specific button styles */
+  .btn-unfollow {
+    background-color: #e74c3c;
+    /* Reddish color for unfollow */
+    color: white;
+  }
+
+  .btn-pending {
+    background-color: #f9a825;
+    color: #333;
+    cursor: pointer;
+  }
+
+  .btn-pending:hover {
+    background-color: #e74c3c;
+    color: white;
+  }
+
+  .btn-follow {
+    background-color: #2ecc71;
+    /* Green color for follow */
+    color: white;
+  }
+ 
+  .btn-follow:hover {
+    background-color: #e74c3c;
+    color: white
+  }
+
+  .btn-accept {
+    background-color: green;
+    /* Orange color for pending */
+    color: white;
+  }
+
+  /* Add additional styles for hover, focus, etc. as needed */
+  .btn:hover {
+    opacity: 3;
+    /* Reduce opacity slightly */
+  }
+
+  .btn:focus {
+    outline: 2px solid #ddd;
+    /* Outline on focus */
+  }
+
+  .btn-message {
+    background-color: #3498db;
+    /* Blue color for message */
+    color: white;
+
+  }
+
+ 
+</style>
+<main class="create-room layout">
+  <div class="container">
+    <div class="layout__box">
+      <div class="layout__boxHeader">
+        <div class="layout__boxTitle">
+          <a href="{% url 'user_profile' request.user.id %}">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+              <title>arrow-left</title>
+              <path
+                d="M13.723 2.286l-13.723 13.714 13.719 13.714 1.616-1.611-10.96-10.96h27.625v-2.286h-27.625l10.965-10.965-1.616-1.607z">
+              </path>
+            </svg>
+          </a>
+          {% if page == 'followers' %}
+          <h3>Followers</h3>
+          {% else %}
+          <h3>Following</h3>
+          {% endif %}
+        </div>
+      </div>
+      {% if page == 'followers' %}
+      <div class="layout__body">
+        <div class="follower-container">
+          <!-- My Requested Followers -->
+          {% for follower in requested %}
+          <div class="follower-row">
+            <div class="follower">
+              <img class="avatar avatar--medium active" src="{{follower.sender.avatar.url}} " alt="Avatar 1">
+              <div class="follower-info">
+                <a href="{% url 'user_profile' follower.sender.id %}">
+                  <p class="username">@{{follower.sender.username}}</p>
+                </a>
+                {% if follower.status == 'requested' %}
+                <a href="{% url 'respond_my_followers_request' follower.sender.id 'accept' %}"
+                  class="btn btn-accept">Accept</a>
+                <a href="{% url 'respond_my_followers_request' follower.sender.id 'reject' %}"
+                  class="btn btn-unfollow">Reject</a>
+                {% endif %}
+                <a href="#" class="btn btn-message">Message</a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          <!-- My Followers -->
+          {% for follower in followers %}
+          <div class="follower-row">
+            <div class="follower">
+              <img class="avatar avatar--medium active" src="{{follower.sender.avatar.url}} " alt="Avatar 1">
+              <div class="follower-info">
+                <a href="{% url 'user_profile' follower.sender.id %}">
+                  <p class="username">@{{follower.sender.username}}</p>
+                </a>
+                {% if follower.status == 'accepted' %}
+                <a href="{% url 'unfollow_my_follower' follower.sender.id  %}" class="btn btn-unfollow">Unfollow</a>
+                {% endif %}
+                <a href="#" class="btn btn-message">Message</a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="layout__body">
+        <div class="follower-container">
+          <!-- My Requested Following -->
+          {% for followed in requested %}
+          <div class="follower-row">
+            <div class="follower">
+              <img class="avatar avatar--medium active" src="{{followed.receiver.avatar.url}} " alt="Avatar 1">
+              <div class="follower-info">
+                <a href="{% url 'user_profile' followed.receiver.id %}">
+                  <p class="username">@{{followed.receiver.username}}</p>
+                </a>
+                <a href="{% url 'unfollow_my_following' followed.receiver.id %}" class="btn btn-pending">Requested</a>
+                <a href="#" class="btn btn-message">Message</a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          <!-- My Following -->
+          {% for followed in following %}
+          <div class="follower-row">
+            <div class="follower">
+              <img class="avatar avatar--medium active" src="{{followed.receiver.avatar.url}} " alt="Avatar 1">
+              <div class="follower-info">
+                <a href="{% url 'user_profile' followed.receiver.id %}">
+                  <p class="username">@{{followed.receiver.username}}</p>
+                </a>
+                <a href="{% url 'unfollow_my_following' followed.receiver.id %}" class="btn btn-follow">Followed</a>
+                <a href="#" class="btn btn-message">Message</a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+  <script>
+    const pendingButtons = document.querySelectorAll('.btn-pending');
+
+    pendingButtons.forEach(button => {
+      button.addEventListener('mouseover', () => {
+        button.textContent = 'Cancel';
+      });
+
+      button.addEventListener('mouseout', () => {
+        button.textContent = 'Requested'; // Restore original text
+      });
+    });
+
+    const followButtons = document.querySelectorAll('.btn-follow');
+
+    followButtons.forEach(button => {
+      button.addEventListener('mouseover', () => {
+        button.textContent = 'Unfollow';
+      });
+
+      button.addEventListener('mouseout', () => {
+        button.textContent = 'Followed'; // Restore original text
+      });
+    });
+  </script>
+</main>
+{% endblock content %}

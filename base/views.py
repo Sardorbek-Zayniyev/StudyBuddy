@@ -9,7 +9,7 @@ from datetime import timedelta
 from django.contrib.auth.hashers import check_password
 from django.core.exceptions import ValidationError
 
-from .models import User, Topic, Room, Message
+from .models import User, Topic, Room, Message, FriendRequest
 from .forms import UserForm, UserCreationForm, RoomForm, MessageForm
 from .utils import (
     create_user_and_send_verification_email,
@@ -23,6 +23,7 @@ def login_page(request):
     page = "login"
 
     if request.user.is_authenticated:
+        messages.info(request, "You are already logged in.")
         return redirect("home")
 
     if request.method == "POST":
@@ -37,7 +38,8 @@ def login_page(request):
                     login(request, user)
                     return redirect("home")
                 elif timezone.now() - user.activation_sent_at < timedelta(minutes=5):
-                    messages.warning(request, "Please activate your profile first!")
+                    messages.warning(
+                        request, "Please activate your profile first!")
                 else:
                     messages.error(
                         request, "Activation link expired. Please request a new one."
@@ -74,7 +76,8 @@ def register_user(request):
             if time_difference < timedelta(minutes=5):
                 messages.error(
                     request,
-                    f"Please wait {remaining_time} minutes before requesting another activation link.",
+                    f"Please wait {
+                        remaining_time} minutes before requesting another activation link.",
                 )
             else:
                 user.delete()
@@ -108,11 +111,14 @@ def activate(request, uidb64, token):
     user = activate_user(uidb64, token)
 
     if user is not None:
-        messages.success(request, "Congratulations! Your account is activated.")
+        messages.success(
+            request, "Congratulations! Your account is activated.")
+        login(request, user)
     else:
         messages.error(request, "Activation link is invalid or has expired.")
         return redirect("home")
-    return redirect("user_profile", pk=user.id)
+    return redirect("edit_user")
+    # return redirect("user_profile", pk=user.id)
 
 
 def forgot_password(request):
@@ -124,7 +130,8 @@ def forgot_password(request):
             if user:
                 mail_subject = "Reset Your Password"
                 email_template = "emails/reset_password_email.html"
-                send_verification_email(request, user, mail_subject, email_template)
+                send_verification_email(
+                    request, user, mail_subject, email_template)
                 messages.success(
                     request, "Password reset link has been sent to your email address."
                 )
@@ -192,11 +199,25 @@ def user_profile(request, pk):
     rooms = user.room_set.all()
     room_messages = user.message_set.all()
     topics = Topic.objects.all()
+    followers = FriendRequest.objects.filter(
+        sender=user, receiver=request.user)
+    following = FriendRequest.objects.filter(
+        sender=request.user, receiver=user)
+    is_requesting = FriendRequest.objects.filter(
+        sender=request.user, receiver=user, status='requested').exists()
+    is_followed = FriendRequest.objects.filter(
+        sender=request.user, receiver=user, status='accepted').exists()
+
     context = {
         "user": user,
         "rooms": rooms,
         "room_messages": room_messages,
         "topics": topics,
+        'followers': followers,
+        'following': following,
+        'is_requesting': is_requesting,
+        'is_followed': is_followed,
+
     }
     return render(request, "base/profile.html", context)
 
@@ -204,7 +225,8 @@ def user_profile(request, pk):
 def home(request):
     q = request.GET.get("q") if request.GET.get("q") != None else ""
     rooms = Room.objects.filter(
-        Q(topic__name__icontains=q) | Q(name__icontains=q) | Q(description__icontains=q)
+        Q(topic__name__icontains=q) | Q(
+            name__icontains=q) | Q(description__icontains=q)
     )
     topics = Topic.objects.all()[0:5]
     room_count = rooms.count()
@@ -242,7 +264,6 @@ def room(request, pk):
 
 
 # Room CRUD
-
 
 @login_required(login_url="login")
 def create_room(request):
@@ -308,7 +329,6 @@ def delete_room(request, pk):
 
 # Message CRUD
 
-
 @login_required(login_url="login")
 def edit_message(request, pk):
     message = Message.objects.get(id=pk)
@@ -352,3 +372,151 @@ def activity_page(request):
     room_messages = Message.objects.all()
 
     return render(request, "base/activity.html", {"room_messages": room_messages})
+
+# Friendship Request
+
+
+@login_required(login_url="login")
+def sent_friend_request(request, pk):
+    recevier = User.objects.get(id=pk)
+    FriendRequest.objects.create(sender=request.user, receiver=recevier)
+    return redirect('user_profile', pk=pk)
+
+
+@login_required(login_url="login")
+def get_followers(request, pk):
+    page = 'followers'
+    user = User.objects.get(id=pk)
+    followers = user.followers.filter(status='accepted')
+    logged_in_user_requested = request.user.following.filter(
+        status='requested').values_list('receiver_id', flat=True)
+    logged_in_user_following = request.user.following.filter(
+        status='accepted').values_list('receiver_id', flat=True)
+
+    anotated_followers = []
+    for follower in followers:
+        if follower.sender.id in logged_in_user_following:
+            relationship_status = 'accepted'
+        elif follower.sender.id in logged_in_user_requested:
+            relationship_status = 'requested'
+        else:
+            relationship_status = 'not_followed'
+        anotated_followers.append({
+            'sender': follower.sender,
+            'relationship_status': relationship_status,
+        })
+
+    context = {
+        'page': page,
+        'user': user,
+        'anotated_followers': anotated_followers,
+    }
+    return render(request, 'base/friendship.html', context)
+
+
+@login_required(login_url="login")
+def get_following(request, pk):
+    user = User.objects.get(id=pk)
+    following = user.following.filter(status='accepted')
+    logged_in_user_requested = request.user.following.filter(
+        status='requested').values_list('receiver_id', flat=True)
+    logged_in_user_following = request.user.following.filter(
+        status='accepted').values_list('receiver_id', flat=True)
+
+    anotated_followers = []
+    for follower in following:
+        if follower.receiver.id in logged_in_user_following:
+            relationship_status = 'accepted'
+        elif follower.receiver.id in logged_in_user_requested:
+            relationship_status = 'requested'
+        else:
+            relationship_status = 'not_followed'
+        anotated_followers.append({
+            'receiver': follower.receiver,
+            'relationship_status': relationship_status,
+        })
+
+    context = {
+        'user': user,
+        'anotated_followers': anotated_followers,
+    }
+    return render(request, 'base/friendship.html', context)
+
+
+@login_required(login_url="login")
+def unfollow_user(request, pk):
+    user = User.objects.get(id=pk)
+    FriendRequest.objects.filter(sender=request.user, receiver=user).delete()
+    return redirect('user_profile', pk=pk)
+
+# self.user followers-following functions
+
+
+@login_required(login_url="login")
+def respond_my_followers_request(request, pk, action):
+    user = User.objects.get(id=pk)
+    friend_request = FriendRequest.objects.get(
+        sender=user, receiver=request.user, status='requested')
+    if action == 'accept':
+        friend_request.status = 'accepted'
+        friend_request.save()
+        messages.success(
+            request, f'{friend_request.sender} is added to your followers.')
+        return redirect('get_my_followers')
+    if action == 'reject':
+        # friend_request.status = 'rejected'
+        # friend_request.save()
+        # messages.success(
+        #     request, f"{friend_request.sender}'s requset is rejected.")
+        friend_request.delete()
+        return redirect('get_my_followers')
+
+
+@login_required(login_url="login")
+def get_my_followers(request):
+    page = 'followers'
+
+    requested = request.user.followers.filter(status='requested')
+    followers = request.user.followers.filter(status='accepted')
+    context = {
+        'page': page,
+        'requested': requested,
+        'followers': followers,
+
+    }
+    return render(request, 'base/my_friendship.html', context)
+
+
+@login_required(login_url="login")
+def get_my_following(request):
+
+    requested = request.user.following.filter(status='requested')
+    following = request.user.following.filter(status='accepted')
+
+    context = {
+        'requested': requested,
+        'following': following,
+
+    }
+    return render(request, 'base/my_friendship.html', context)
+
+
+@login_required(login_url="login")
+def unfollow_my_follower(request, pk):
+    user = User.objects.get(id=pk)
+    received_request = FriendRequest.objects.filter(
+        sender=user, receiver=request.user, status='accepted')
+    if received_request:
+        received_request.delete()
+    next_url = request.GET.get('next', 'get_my_followers')
+    return redirect(next_url)
+
+
+@login_required(login_url="login")
+def unfollow_my_following(request, pk):
+    user = User.objects.get(id=pk)
+    send_request = FriendRequest.objects.filter(
+        sender=request.user, receiver=user)
+    if send_request:
+        send_request.delete()
+    return redirect('get_my_following')
